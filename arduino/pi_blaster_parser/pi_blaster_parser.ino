@@ -1,19 +1,13 @@
 /*
- * Pi Blaster parser
- * 
- * This software is to parse Pi-Blaster frames received over Serial Link
- * 
- * -----
- * Highly experimental, under development, no liabilities, use at own risk
- * More:
- * http://uczymy.edu.pl/wp/na-warsztacie/doswiadczenia-z-tasmami-led-i-raspberry-pi/
- */
-#include <SoftwareSerial.h>
+   Pi Blaster parser
 
-SoftwareSerial mySerial(4, 2);
+   This software is to parse Pi-Blaster frames received over Serial Link
 
-#define BUF_SIZE 20
-char buf[BUF_SIZE];
+   -----
+   Highly experimental, under development, no liabilities, use at own risk.
+   More:
+   http://uczymy.edu.pl/wp/na-warsztacie/doswiadczenia-z-tasmami-led-i-raspberry-pi/
+*/
 
 #define RASPBERRY_RED 17
 #define RASPBERRY_GREEN 22
@@ -23,126 +17,143 @@ char buf[BUF_SIZE];
 #define ARDUINO_GREEN 6
 #define ARDUINO_BLUE 9
 
-#define DEBUG 1
-//#undef DEBU1
+#define RELAY_PIN 12
 
-//int lastPWMValues[10] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-//int ssMax = 1;
-//int ssMin = -1;
+#define DEBUG 1
+//#define DEBUG 0
+
+#define OVERRIDE_OFF 0
+#define OVERRIDE_ON 1
+
+#define OVERRIDE_END 255
+
+
+#define BUF_SIZE 25
+char buf[BUF_SIZE];
+char *bufPos = buf;
 
 int pin;
 int dutyMajor;
 char dutyMinor[10];
 
 char c;
-char *bufPos = buf;
 byte chrCnt = BUF_SIZE;
 
+bool override = false;
 
+//*************************************
 void setup() {
   Serial.begin(9600);
-
-  //mySerial.begin(9600);
-  //mySerial.println("START");
 
   pinMode(ARDUINO_RED, OUTPUT);
   pinMode(ARDUINO_GREEN, OUTPUT);
   pinMode(ARDUINO_BLUE, OUTPUT);
 
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH );
 }
 
-
-void displayWrite(int pin, int pwm){
+//*************************************
+void debugMe(int pin, int pwm) {
+#ifdef DEBUG
   Serial.print(":");
   Serial.print(pin);
   Serial.print(",");
   Serial.println(pwm);
-
+#endif
 }
 
-
-void firePWM(int pin, int duty){
+//*************************************
+void firePWM(int pin, int duty) {
   analogWrite(pin, duty);
 }
+
+//*************************************
 void setPWM(int pin, float duty) {
-  
+
   int pwm = (int)(255.*duty);
-  
+
   if (pin == RASPBERRY_BLUE ) {
-    //int diff = pwm - lastPWMValues[ARDUINO_BLUE];
-    //if ( diff < ssMin || diff > ssMax ) {
-      //Blue
-      //mySerial.print("bb:");
-      //displayWrite(pin,pwm);
-      
-      firePWM(ARDUINO_BLUE, pwm);
-      //lastPWMValues[ARDUINO_BLUE] = pwm;
-    //}
+    debugMe(pin, pwm);
+    firePWM(ARDUINO_BLUE, pwm);
+    
   } else if (pin == RASPBERRY_GREEN ) {
-    //int diff = pwm - lastPWMValues[ARDUINO_GREEN];
-
-    //if ( diff < ssMin || diff > ssMax ) {
-      //Green
-      //mySerial.print("gg:");
-      //displayWrite(pin,pwm);
-      
-      firePWM(ARDUINO_GREEN, pwm);
-    //  lastPWMValues[ARDUINO_GREEN] = pwm;
-    //}
+    debugMe(pin, pwm);
+    firePWM(ARDUINO_GREEN, pwm);
+    
   } else if (pin == RASPBERRY_RED ) {
-    //int diff = pwm - lastPWMValues[ARDUINO_RED];
-
-    //if ( diff < ssMin || diff > ssMax ) {
-      //Red
-      //mySerial.print("rr:");
-      //displayWrite(pin,pwm);
-      
-      firePWM(ARDUINO_RED, pwm);
-    //  lastPWMValues[ARDUINO_RED] = pwm;
-    //}
+    debugMe(pin, pwm);
+    firePWM(ARDUINO_RED, pwm);
+    
   }
 }
 
+//*************************************
 void loop() {
-
-
-  //if (Serial.available()) 
-  {
-    //Serial.println("got...");
-    while (Serial.peek()) {
-      //mySerial.print(";");
-      c = Serial.read();
-      if(isAlphaNumeric(c) || c=='.' || c=='='){
-      //mySerial.print("read:");
-      //mySerial.println(c);
-      
+  int res;
+  while (Serial.peek()) {
+    c = Serial.read();
+    if (isAlphaNumeric(c) || c == '.' || c == '=') {
       *(bufPos++) = c;
       chrCnt -= 1;
-      }
-      //if (chrCnt < (BUF_SIZE - 4))
-        if (c == '\r' || c=='\n') {
-          *(bufPos) = '\0';
-          //mySerial.print(">>>");
-          //mySerial.println(buf);
-          
-          int r = sscanf(buf, "%d=%d.%s", &pin, &dutyMajor, dutyMinor + 1);
-          if ( r ==  3) {
-            dutyMinor[0] = '.';
-            
-            float duty = atof(dutyMinor) + dutyMajor;
-            
-            setPWM(pin, duty);
+    }
+    if ( chrCnt == 0 ) {
+      chrCnt = BUF_SIZE;
+      bufPos = buf;
+      continue;
+    }
+    if (c == '\r' || c == '\n' && ((BUF_SIZE - chrCnt) > 3) ) {
+      *(bufPos) = '\0';
+      if ( (buf[0] == 'o') && (buf[1] == 'v')) {
+        res = sscanf(buf, "ov=%d.%s", &dutyMajor, dutyMinor + 1);
+        if ( res == 2) {
+          switch(dutyMajor){
+            case OVERRIDE_OFF:
+              //Switch off
+              digitalWrite( RELAY_PIN, LOW);
+              override = true; 
+            break;
+            case OVERRIDE_ON:
+              //Switch on
+              digitalWrite( RELAY_PIN, HIGH);
+              override = false;
+            break;
+            case OVERRIDE_END:
+              override = false;
+            break;
+            case RASPBERRY_RED:
+              //Turn red 
+              firePWM(ARDUINO_RED, 255);
+              firePWM(ARDUINO_GREEN, 0);
+              firePWM(ARDUINO_BLUE, 0);
+              override = true;         
+            break;
+            case RASPBERRY_GREEN: 
+              //Turn green
+              firePWM(ARDUINO_RED, 0);
+              firePWM(ARDUINO_GREEN, 255);
+              firePWM(ARDUINO_BLUE, 0);
+              override = true;
+            break;
+            case RASPBERRY_BLUE: 
+              //Turn blue
+              firePWM(ARDUINO_RED, 0);
+              firePWM(ARDUINO_GREEN, 0);
+              firePWM(ARDUINO_BLUE, 255);
+              override = true;
+            break;
           }
-          chrCnt = 0;
         }
-      if (chrCnt == 0) {
-        chrCnt = BUF_SIZE;
-        bufPos = buf;
-        //memset(buf, 0, sizeof(buf));
+      } else if( !override ) {
+        res = sscanf(buf, "%d=%d.%s", &pin, &dutyMajor, dutyMinor + 1);
+        if ( res ==  3) {
+          dutyMinor[0] = '.';
+          float duty = atof(dutyMinor) + dutyMajor;
+          setPWM(pin, duty);
+        }
       }
+      chrCnt = BUF_SIZE;
+      bufPos = buf;
     }
   }
-  //delay(10);
-  //#endif
-
 }
