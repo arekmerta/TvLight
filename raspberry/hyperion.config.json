@@ -1,0 +1,52 @@
+{
+  "device" :
+  {
+    "name"  : "MyPi",
+    "rate":"9600",
+    "type"  : "piblaster",
+    "output"  : "/dev/ttyACM0",   // This is the pi-blaster fifo to write to
+    "gpiomap"  :
+    [
+      { "gpio" : 17, "ledindex" : 0, "ledcolor" : "r" },   // GPIO 4 gets the red component of hyperion led 0
+      { "gpio" : 22, "ledindex" : 0, "ledcolor" : "g" },   // GPIO17 gets the green component of hyperion led 0
+      { "gpio" : 24, "ledindex" : 0, "ledcolor" : "b" }   // GPIO18 gets the blue component of hyperion led 0
+    ]
+ },
+
+  "color" :
+  {
+    "smoothing" :
+    {
+      "type"            : "linear", 
+      "time_ms"         : 200,
+      "updateFrequency" : 20.0000,
+      "updateDelay"     : 0
+    }
+
+  },
+
+
+   "framegrabber" :
+   {
+     "width" : 64,
+     "height" : 64,
+     "frequency_Hz" : 10.0,
+     "priority" : 890
+   },
+
+   "jsonServer" :
+   {
+      "port" : 19444
+   },
+
+   "leds" :
+   [
+     {
+       "index" : 0,
+       "hscan" : { "minimum" : 0.5000, "maximum" : 0.5625 },
+       "vscan" : { "minimum" : 0.9200, "maximum" : 1.0000 }
+      }
+   ],
+
+   "endOfJson" : "endOfJson"
+}
