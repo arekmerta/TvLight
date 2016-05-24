@@ -74,15 +74,15 @@ void setPWM(int pin, float duty) {
   int pwm = (int)(255.*duty);
 
   if (pin == RASPBERRY_BLUE ) {
-    debugMe(pin, pwm);
+    //debugMe(pin, pwm);
     firePWM(ARDUINO_BLUE, pwm);
     
   } else if (pin == RASPBERRY_GREEN ) {
-    debugMe(pin, pwm);
+    //debugMe(pin, pwm);
     firePWM(ARDUINO_GREEN, pwm);
     
   } else if (pin == RASPBERRY_RED ) {
-    debugMe(pin, pwm);
+    //debugMe(pin, pwm);
     firePWM(ARDUINO_RED, pwm);
     
   }
